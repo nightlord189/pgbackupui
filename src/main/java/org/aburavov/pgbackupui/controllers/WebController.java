@@ -50,4 +50,36 @@ public class WebController {
                 .contentType(MediaType.TEXT_HTML)
                 .body(resource);
     }
+
+    @GetMapping("/storages")
+    public ResponseEntity<Resource> listStorages() {
+        Resource resource = new ClassPathResource("static/storages/list.html");
+        return ResponseEntity.ok()
+                .contentType(MediaType.TEXT_HTML)
+                .body(resource);
+    }
+
+    @GetMapping("/storages/new")
+    public ResponseEntity<Resource> newStorage() {
+        Resource resource = new ClassPathResource("static/storages/new.html");
+        return ResponseEntity.ok()
+                .contentType(MediaType.TEXT_HTML)
+                .body(resource);
+    }
+
+    @GetMapping("/storages/edit")
+    public ResponseEntity<Resource> editStorage() {
+        Resource resource = new ClassPathResource("static/storages/edit.html");
+        return ResponseEntity.ok()
+                .contentType(MediaType.TEXT_HTML)
+                .body(resource);
+    }
+
+    @GetMapping("/storages/{id}")
+    public ResponseEntity<Resource> viewStorage(@PathVariable("id") String id) {
+        Resource resource = new ClassPathResource("static/storages/view.html");
+        return ResponseEntity.ok()
+                .contentType(MediaType.TEXT_HTML)
+                .body(resource);
+    }
 }

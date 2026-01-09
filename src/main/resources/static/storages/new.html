@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New Storage</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">
+                <i class="bi bi-database"></i> PG Backup UI
+            </a>
+            <div class="collapse navbar-collapse">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/connections">Connections</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/storages">Storages</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container-fluid py-4" id="app">
+        <div class="row">
+            <div class="col-md-8 offset-md-2">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2><i class="bi bi-plus-circle"></i> New Storage</h2>
+                    <a href="/storages" class="btn btn-secondary">
+                        <i class="bi bi-arrow-left"></i> Back
+                    </a>
+                </div>
+
+                <!-- Alert Messages -->
+                <div v-if="alert.show" :class="'alert alert-' + alert.type + ' alert-dismissible fade show'">
+                    {{ alert.message }}
+                    <button type="button" class="btn-close" @click="alert.show = false"></button>
+                </div>
+
+                <div class="card">
+                    <div class="card-body">
+                        <form @submit.prevent="saveStorage">
+                            <div class="mb-3">
+                                <label for="name" class="form-label">Name *</label>
+                                <input type="text" class="form-control" id="name" v-model="storage.name" required>
+                                <div class="form-text">Unique name for this storage location</div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="type" class="form-label">Type *</label>
+                                <select class="form-select" id="type" v-model="storage.type" required>
+                                    <option value="LOCAL">Local File System</option>
+                                    <option value="S3">Amazon S3</option>
+                                </select>
+                            </div>
+
+                            <!-- LOCAL storage fields -->
+                            <div v-if="storage.type === 'LOCAL'">
+                                <div class="mb-3">
+                                    <label for="path" class="form-label">Path *</label>
+                                    <input type="text" class="form-control" id="path" v-model="storage.path" required>
+                                    <div class="form-text">Local file system path for backups</div>
+                                </div>
+                            </div>
+
+                            <!-- S3 storage fields -->
+                            <div v-if="storage.type === 'S3'">
+                                <div class="mb-3">
+                                    <label for="bucket" class="form-label">S3 Bucket *</label>
+                                    <input type="text" class="form-control" id="bucket" v-model="storage.bucket" required>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="region" class="form-label">AWS Region *</label>
+                                    <input type="text" class="form-control" id="region" v-model="storage.region" required placeholder="us-east-1">
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="prefix" class="form-label">S3 Prefix/Path</label>
+                                    <input type="text" class="form-control" id="prefix" v-model="storage.prefix" placeholder="backups/postgres">
+                                    <div class="form-text">Optional path inside the bucket (e.g., "backups/postgres")</div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="accessKey" class="form-label">Access Key *</label>
+                                    <input type="text" class="form-control" id="accessKey" v-model="storage.accessKey" required>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="secretKey" class="form-label">Secret Key *</label>
+                                    <input type="password" class="form-control" id="secretKey" v-model="storage.secretKey" required>
+                                </div>
+                            </div>
+
+                            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                <a href="/storages" class="btn btn-secondary">Cancel</a>
+                                <button type="submit" class="btn btn-primary" :disabled="saving">
+                                    <span v-if="saving" class="spinner-border spinner-border-sm me-1"></span>
+                                    <i v-else class="bi bi-check-circle"></i>
+                                    {{ saving ? 'Saving...' : 'Create Storage' }}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue@3.4.15/dist/vue.global.js"></script>
+    <script>
+        const { createApp } = Vue;
+
+        createApp({
+            data() {
+                return {
+                    storage: {
+                        name: '',
+                        type: 'LOCAL',
+                        path: '',
+                        bucket: '',
+                        region: '',
+                        prefix: '',
+                        accessKey: '',
+                        secretKey: ''
+                    },
+                    saving: false,
+                    alert: { show: false, type: 'success', message: '' }
+                };
+            },
+            methods: {
+                async saveStorage() {
+                    this.saving = true;
+                    try {
+                        const response = await fetch('/api/storages', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify(this.storage)
+                        });
+
+                        if (!response.ok) {
+                            const error = await response.json();
+                            throw new Error(error.message || 'Failed to create storage');
+                        }
+
+                        window.location.href = '/storages?success=Storage created successfully';
+                    } catch (error) {
+                        this.showAlert('danger', error.message);
+                        this.saving = false;
+                    }
+                },
+                showAlert(type, message) {
+                    this.alert = { show: true, type, message };
+                    setTimeout(() => this.alert.show = false, 5000);
+                }
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
