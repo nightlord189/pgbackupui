@@ -7,6 +7,7 @@ import org.aburavov.pgbackupui.repositories.JobRepository;
 import org.aburavov.pgbackupui.repositories.StorageRepository;
 import org.aburavov.pgbackupui.services.storage.FileStorageService;
 import org.aburavov.pgbackupui.services.storage.IStorageService;
+import org.aburavov.pgbackupui.services.storage.S3StorageService;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -25,12 +26,12 @@ public class StorageService {
     private final Map<StorageType, IStorageService> storageServices;
 
     public StorageService(StorageRepository storageRepository, JobRepository jobRepository,
-                          FileStorageService fileStorageService) {
+                          FileStorageService fileStorageService, S3StorageService s3StorageService) {
         this.storageRepository = storageRepository;
         this.jobRepository = jobRepository;
         this.storageServices = new EnumMap<>(StorageType.class);
         this.storageServices.put(StorageType.LOCAL, fileStorageService);
-        // S3 implementation will be added here later
+        this.storageServices.put(StorageType.S3, s3StorageService);
     }
 
     private IStorageService getStorageService(StorageType type) {
@@ -115,10 +116,10 @@ public class StorageService {
         String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
         String backupDirName = "backup_" + timestamp;
 
-        String backupPath = storageService.createDirectory(storage.getPath(), backupDirName);
+        String backupPath = storageService.createDirectory(storage, backupDirName);
 
         for (TableBackupData tableData : backupDataList) {
-            storageService.writeFile(backupPath, tableData);
+            storageService.writeFile(storage, backupPath, tableData);
         }
 
         return backupPath;
@@ -128,19 +129,19 @@ public class StorageService {
         IStorageService storageService = getStorageService(storage.getType());
 
         // Get all backup directories sorted by modification time (newest first)
-        List<String> backupDirs = storageService.getBackupDirectories(storage.getPath());
+        List<String> backupDirs = storageService.getBackupDirectories(storage);
 
         // Keep only the most recent N backups, delete the rest
         if (backupDirs.size() > retentionCount) {
             List<String> dirsToDelete = backupDirs.subList(retentionCount, backupDirs.size());
             for (String dirToDelete : dirsToDelete) {
-                storageService.deleteDirectory(storage.getPath(), dirToDelete);
+                storageService.deleteDirectory(storage, dirToDelete);
             }
         }
     }
 
-    public long calculateDirectorySize(String directoryPath, StorageType storageType) throws IOException {
-        IStorageService storageService = getStorageService(storageType);
-        return storageService.calculateDirectorySize(directoryPath);
+    public long calculateDirectorySize(Storage storage, String directoryPath) throws IOException {
+        IStorageService storageService = getStorageService(storage.getType());
+        return storageService.calculateDirectorySize(storage, directoryPath);
     }
 }

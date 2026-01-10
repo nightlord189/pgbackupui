@@ -31,7 +31,6 @@ docker-compose up -d
 - Пароль: `password`
 
 ### 2. Запуск тестовой PostgreSQL базы (опционально)
-Для тестирования функционала загрузки схемы БД:
 ```bash
 make run-test-db
 # или
@@ -46,21 +45,9 @@ docker-compose -f docker-compose-test.yml up -d
 - Password: `postgres`
 - Таблицы: `users` (3 записи), `orders` (4 записи)
 
-### 3. Запуск приложения
+### 3. Запуск
 ```bash
 mvn spring-boot:run
 ```
 
-Приложение будет доступно на http://localhost:8080
-
-### Остановка сервисов
-```bash
-# Остановить MongoDB
-make stop
-
-# Остановить PostgreSQL
-make stop-test-db
-
-# Остановить всё
-make stop && make stop-test-db
-```
+Доступно по http://localhost:8080

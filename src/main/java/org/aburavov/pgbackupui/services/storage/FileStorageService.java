@@ -1,6 +1,7 @@
 package org.aburavov.pgbackupui.services.storage;
 
 import org.aburavov.pgbackupui.dto.TableBackupData;
+import org.aburavov.pgbackupui.models.Storage;
 import org.springframework.stereotype.Service;
 
 import java.io.BufferedWriter;
@@ -18,14 +19,14 @@ import java.util.stream.Stream;
 public class FileStorageService implements IStorageService {
 
     @Override
-    public String createDirectory(String storagePath, String directoryName) throws IOException {
-        Path backupPath = Paths.get(storagePath, directoryName);
+    public String createDirectory(Storage storage, String directoryName) throws IOException {
+        Path backupPath = Paths.get(storage.getPath(), directoryName);
         Files.createDirectories(backupPath);
         return backupPath.toString();
     }
 
     @Override
-    public void writeFile(String backupPath, TableBackupData tableData) throws IOException {
+    public void writeFile(Storage storage, String backupPath, TableBackupData tableData) throws IOException {
         String tableName = tableData.getTableName();
         Path sqlFilePath = Paths.get(backupPath, tableName + ".sql");
 
@@ -38,8 +39,8 @@ public class FileStorageService implements IStorageService {
     }
 
     @Override
-    public List<String> getBackupDirectories(String storagePath) throws IOException {
-        Path path = Paths.get(storagePath);
+    public List<String> getBackupDirectories(Storage storage) throws IOException {
+        Path path = Paths.get(storage.getPath());
         if (!Files.exists(path) || !Files.isDirectory(path)) {
             return List.of();
         }
@@ -62,8 +63,8 @@ public class FileStorageService implements IStorageService {
     }
 
     @Override
-    public void deleteDirectory(String storagePath, String directoryName) throws IOException {
-        Path directory = Paths.get(storagePath, directoryName);
+    public void deleteDirectory(Storage storage, String directoryName) throws IOException {
+        Path directory = Paths.get(storage.getPath(), directoryName);
         if (Files.exists(directory)) {
             try (Stream<Path> walk = Files.walk(directory)) {
                 walk.sorted(java.util.Comparator.reverseOrder())
@@ -80,7 +81,7 @@ public class FileStorageService implements IStorageService {
     }
 
     @Override
-    public long calculateDirectorySize(String directoryPath) throws IOException {
+    public long calculateDirectorySize(Storage storage, String directoryPath) throws IOException {
         Path path = Paths.get(directoryPath);
         try (Stream<Path> walk = Files.walk(path)) {
             return walk

@@ -50,7 +50,7 @@ public class BackupService {
             // Apply retention policy to clean up old backups
             storageService.applyRetentionPolicy(storage, job.getRetentionCount());
 
-            Long totalSize = storageService.calculateDirectorySize(backupPath, storage.getType());
+            Long totalSize = storageService.calculateDirectorySize(storage, backupPath);
             String folderName = Paths.get(backupPath).getFileName().toString();
             jobRun.markSuccess(folderName, totalSize);
             jobRunRepository.save(jobRun);
