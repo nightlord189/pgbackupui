@@ -3,8 +3,10 @@ package org.aburavov.pgbackupui.services;
 import org.aburavov.pgbackupui.models.Job;
 import org.aburavov.pgbackupui.repositories.ConnectionRepository;
 import org.aburavov.pgbackupui.repositories.JobRepository;
+import org.aburavov.pgbackupui.repositories.JobRunRepository;
 import org.aburavov.pgbackupui.repositories.StorageRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -15,13 +17,16 @@ public class JobService {
     private final JobRepository jobRepository;
     private final ConnectionRepository connectionRepository;
     private final StorageRepository storageRepository;
+    private final JobRunRepository jobRunRepository;
 
     public JobService(JobRepository jobRepository,
                       ConnectionRepository connectionRepository,
-                      StorageRepository storageRepository) {
+                      StorageRepository storageRepository,
+                      JobRunRepository jobRunRepository) {
         this.jobRepository = jobRepository;
         this.connectionRepository = connectionRepository;
         this.storageRepository = storageRepository;
+        this.jobRunRepository = jobRunRepository;
     }
 
     public List<Job> findAll() {
@@ -92,10 +97,14 @@ public class JobService {
         return jobRepository.save(existing);
     }
 
+    @Transactional
     public void delete(String id) {
         if (!jobRepository.existsById(id)) {
             throw new IllegalArgumentException("Job not found: " + id);
         }
+        // Delete all associated job runs first
+        jobRunRepository.deleteByJobId(id);
+        // Then delete the job itself
         jobRepository.deleteById(id);
     }
 

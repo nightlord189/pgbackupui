@@ -2,6 +2,7 @@ package org.aburavov.pgbackupui.services;
 
 import org.aburavov.pgbackupui.models.Connection;
 import org.aburavov.pgbackupui.repositories.ConnectionRepository;
+import org.aburavov.pgbackupui.repositories.JobRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -11,9 +12,11 @@ import java.util.Optional;
 public class ConnectionService {
 
     private final ConnectionRepository connectionRepository;
+    private final JobRepository jobRepository;
 
-    public ConnectionService(ConnectionRepository connectionRepository) {
+    public ConnectionService(ConnectionRepository connectionRepository, JobRepository jobRepository) {
         this.connectionRepository = connectionRepository;
+        this.jobRepository = jobRepository;
     }
 
     public List<Connection> findAll() {
@@ -65,6 +68,9 @@ public class ConnectionService {
     public void delete(String id) {
         if (!connectionRepository.existsById(id)) {
             throw new IllegalArgumentException("Connection not found: " + id);
+        }
+        if (jobRepository.existsByConnectionId(id)) {
+            throw new IllegalArgumentException("Cannot delete connection: it is used by one or more jobs");
         }
         connectionRepository.deleteById(id);
     }

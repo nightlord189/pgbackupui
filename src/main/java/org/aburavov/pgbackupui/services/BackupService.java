@@ -3,12 +3,18 @@ package org.aburavov.pgbackupui.services;
 import org.aburavov.pgbackupui.dto.TableBackupData;
 import org.aburavov.pgbackupui.models.Connection;
 import org.aburavov.pgbackupui.models.Job;
+import org.aburavov.pgbackupui.models.JobRun;
 import org.aburavov.pgbackupui.models.Storage;
+import org.aburavov.pgbackupui.repositories.JobRunRepository;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.sql.SQLException;
 import java.util.List;
+import java.util.stream.Stream;
 
 @Service
 public class BackupService {
@@ -17,26 +23,59 @@ public class BackupService {
     private final StorageService storageService;
     private final ConnectionService connectionService;
     private final JobService jobService;
+    private final JobRunRepository jobRunRepository;
 
     public BackupService(DbService dbService, StorageService storageService,
-                        ConnectionService connectionService, JobService jobService) {
+                        ConnectionService connectionService, JobService jobService,
+                        JobRunRepository jobRunRepository) {
         this.dbService = dbService;
         this.storageService = storageService;
         this.connectionService = connectionService;
         this.jobService = jobService;
+        this.jobRunRepository = jobRunRepository;
     }
 
     public String executeBackup(Job job) throws SQLException, IOException {
-        Connection connection = connectionService.findById(job.getConnectionId())
-                .orElseThrow(() -> new IllegalArgumentException("Connection not found: " + job.getConnectionId()));
+        JobRun jobRun = new JobRun(job.getId(), "MANUAL");
+        jobRun = jobRunRepository.save(jobRun);
 
-        Storage storage = storageService.findById(job.getStorageId())
-                .orElseThrow(() -> new IllegalArgumentException("Storage not found: " + job.getStorageId()));
+        try {
+            Connection connection = connectionService.findById(job.getConnectionId())
+                    .orElseThrow(() -> new IllegalArgumentException("Connection not found: " + job.getConnectionId()));
 
-        List<TableBackupData> backupDataList = dbService.extractTableData(job, connection);
+            Storage storage = storageService.findById(job.getStorageId())
+                    .orElseThrow(() -> new IllegalArgumentException("Storage not found: " + job.getStorageId()));
 
-        String backupPath = storageService.writeBackup(storage, backupDataList);
+            List<TableBackupData> backupDataList = dbService.extractTableData(job, connection);
 
-        return backupPath;
+            String backupPath = storageService.writeBackup(storage, backupDataList);
+
+            Long totalSize = calculateDirectorySize(backupPath);
+            String folderName = Paths.get(backupPath).getFileName().toString();
+            jobRun.markSuccess(folderName, totalSize);
+            jobRunRepository.save(jobRun);
+
+            return backupPath;
+        } catch (Exception e) {
+            jobRun.markFailed(e.getMessage());
+            jobRunRepository.save(jobRun);
+            throw e;
+        }
+    }
+
+    private Long calculateDirectorySize(String directoryPath) throws IOException {
+        Path path = Paths.get(directoryPath);
+        try (Stream<Path> walk = Files.walk(path)) {
+            return walk
+                    .filter(Files::isRegularFile)
+                    .mapToLong(p -> {
+                        try {
+                            return Files.size(p);
+                        } catch (IOException e) {
+                            return 0L;
+                        }
+                    })
+                    .sum();
+        }
     }
 }

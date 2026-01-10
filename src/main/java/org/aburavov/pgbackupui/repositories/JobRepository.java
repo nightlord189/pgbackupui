@@ -12,4 +12,8 @@ public interface JobRepository extends MongoRepository<Job, String> {
     Optional<Job> findByName(String name);
 
     boolean existsByName(String name);
+
+    boolean existsByConnectionId(String connectionId);
+
+    boolean existsByStorageId(String storageId);
 }

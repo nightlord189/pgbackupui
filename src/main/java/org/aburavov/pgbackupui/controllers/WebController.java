@@ -114,4 +114,12 @@ public class WebController {
                 .contentType(MediaType.TEXT_HTML)
                 .body(resource);
     }
+
+    @GetMapping("/jobs/{id}/runs")
+    public ResponseEntity<Resource> viewJobRuns(@PathVariable("id") String id) {
+        Resource resource = new ClassPathResource("static/jobs/runs.html");
+        return ResponseEntity.ok()
+                .contentType(MediaType.TEXT_HTML)
+                .body(resource);
+    }
 }

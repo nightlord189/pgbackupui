@@ -102,8 +102,8 @@
                                 <button @click="runJob(job)" class="btn btn-outline-success" title="Run job">
                                     <i class="bi bi-play-fill"></i>
                                 </button>
-                                <a :href="'/jobs/' + job.id" class="btn btn-outline-info" title="View details">
-                                    <i class="bi bi-eye"></i>
+                                <a :href="'/jobs/' + job.id + '/runs'" class="btn btn-outline-secondary" title="View run history">
+                                    <i class="bi bi-clock-history"></i>
                                 </a>
                                 <a :href="'/jobs/edit?id=' + job.id" class="btn btn-outline-primary" title="Edit">
                                     <i class="bi bi-pencil"></i>
@@ -231,14 +231,21 @@
                 },
                 async deleteJob() {
                     try {
-                        await fetch(`/api/jobs/${this.selectedJob.id}`, {
+                        const response = await fetch(`/api/jobs/${this.selectedJob.id}`, {
                             method: 'DELETE'
                         });
+
+                        if (!response.ok) {
+                            const error = await response.json();
+                            throw new Error(error.message || 'Failed to delete job');
+                        }
+
                         this.showAlert('success', 'Job deleted successfully');
                         await this.loadJobs();
                         this.deleteModal.hide();
                     } catch (error) {
-                        this.showAlert('danger', 'Failed to delete job');
+                        this.showAlert('danger', error.message);
+                        this.deleteModal.hide();
                     }
                 },
                 showAlert(type, message) {

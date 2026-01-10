@@ -87,9 +87,6 @@
                         </td>
                         <td>
                             <div class="btn-group btn-group-sm">
-                                <a :href="'/storages/' + storage.id" class="btn btn-outline-info">
-                                    <i class="bi bi-eye"></i>
-                                </a>
                                 <a :href="'/storages/edit?id=' + storage.id" class="btn btn-outline-primary">
                                     <i class="bi bi-pencil"></i>
                                 </a>
@@ -169,14 +166,21 @@
                 },
                 async deleteStorage() {
                     try {
-                        await fetch(`/api/storages/${this.selectedStorage.id}`, {
+                        const response = await fetch(`/api/storages/${this.selectedStorage.id}`, {
                             method: 'DELETE'
                         });
+
+                        if (!response.ok) {
+                            const error = await response.json();
+                            throw new Error(error.message || 'Failed to delete storage');
+                        }
+
                         this.showAlert('success', 'Storage deleted successfully');
                         await this.loadStorages();
                         this.deleteModal.hide();
                     } catch (error) {
-                        this.showAlert('danger', 'Failed to delete storage');
+                        this.showAlert('danger', error.message);
+                        this.deleteModal.hide();
                     }
                 },
                 showAlert(type, message) {

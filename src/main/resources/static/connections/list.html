@@ -79,9 +79,6 @@
                         <td>{{ conn.username }}</td>
                         <td>
                             <div class="btn-group btn-group-sm">
-                                <a :href="'/connections/' + conn.id" class="btn btn-outline-info">
-                                    <i class="bi bi-eye"></i>
-                                </a>
                                 <a :href="'/connections/edit?id=' + conn.id" class="btn btn-outline-primary">
                                     <i class="bi bi-pencil"></i>
                                 </a>
@@ -161,14 +158,21 @@
                 },
                 async deleteConnection() {
                     try {
-                        await fetch(`/api/connections/${this.selectedConnection.id}`, {
+                        const response = await fetch(`/api/connections/${this.selectedConnection.id}`, {
                             method: 'DELETE'
                         });
+
+                        if (!response.ok) {
+                            const error = await response.json();
+                            throw new Error(error.message || 'Failed to delete connection');
+                        }
+
                         this.showAlert('success', 'Connection deleted successfully');
                         await this.loadConnections();
                         this.deleteModal.hide();
                     } catch (error) {
-                        this.showAlert('danger', 'Failed to delete connection');
+                        this.showAlert('danger', error.message);
+                        this.deleteModal.hide();
                     }
                 },
                 showAlert(type, message) {

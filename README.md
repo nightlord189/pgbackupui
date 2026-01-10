@@ -15,7 +15,7 @@
 1) connections - name, type (postgresql), host, port, db, username, password
 2) storages - name, type (local, s3), а дальше уже специфичные поля
 3) jobs - name, connection_id, storage_id, retention_count, schedule, tables (тут и колонки опционально, либо селектим все (*))
-4) job_runs - job_id, started_at, finished_at, status, error_message, triggered_by, files_size
+4) job_runs - job_id, folder_name, started_at, finished_at, status, error_message, triggered_by, files_size
 
 ## Запуск
 

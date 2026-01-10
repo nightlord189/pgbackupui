@@ -3,6 +3,7 @@ package org.aburavov.pgbackupui.services;
 import org.aburavov.pgbackupui.dto.TableBackupData;
 import org.aburavov.pgbackupui.models.Storage;
 import org.aburavov.pgbackupui.models.StorageType;
+import org.aburavov.pgbackupui.repositories.JobRepository;
 import org.aburavov.pgbackupui.repositories.StorageRepository;
 import org.springframework.stereotype.Service;
 
@@ -20,9 +21,11 @@ import java.util.Optional;
 public class StorageService {
 
     private final StorageRepository storageRepository;
+    private final JobRepository jobRepository;
 
-    public StorageService(StorageRepository storageRepository) {
+    public StorageService(StorageRepository storageRepository, JobRepository jobRepository) {
         this.storageRepository = storageRepository;
+        this.jobRepository = jobRepository;
     }
 
     public List<Storage> findAll() {
@@ -82,6 +85,9 @@ public class StorageService {
     public void delete(String id) {
         if (!storageRepository.existsById(id)) {
             throw new IllegalArgumentException("Storage not found: " + id);
+        }
+        if (jobRepository.existsByStorageId(id)) {
+            throw new IllegalArgumentException("Cannot delete storage: it is used by one or more jobs");
         }
         storageRepository.deleteById(id);
     }
