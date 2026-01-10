@@ -152,13 +152,20 @@
                                 </div>
                             </div>
 
-                            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                                <a href="/jobs" class="btn btn-secondary">Cancel</a>
-                                <button type="submit" class="btn btn-primary" :disabled="saving">
-                                    <span v-if="saving" class="spinner-border spinner-border-sm me-1"></span>
-                                    <i v-else class="bi bi-check-circle"></i>
-                                    {{ saving ? 'Saving...' : 'Update Job' }}
+                            <div class="d-grid gap-2 d-md-flex justify-content-md-between">
+                                <button type="button" class="btn btn-success" @click="runJob" :disabled="running">
+                                    <span v-if="running" class="spinner-border spinner-border-sm me-1"></span>
+                                    <i v-else class="bi bi-play-fill"></i>
+                                    {{ running ? 'Running...' : 'Run Job' }}
                                 </button>
+                                <div>
+                                    <a href="/jobs" class="btn btn-secondary me-2">Cancel</a>
+                                    <button type="submit" class="btn btn-primary" :disabled="saving">
+                                        <span v-if="saving" class="spinner-border spinner-border-sm me-1"></span>
+                                        <i v-else class="bi bi-check-circle"></i>
+                                        {{ saving ? 'Saving...' : 'Update Job' }}
+                                    </button>
+                                </div>
                             </div>
                         </form>
                     </div>
@@ -183,6 +190,7 @@
                     storages: [],
                     loading: true,
                     saving: false,
+                    running: false,
                     alert: { show: false, type: 'success', message: '' }
                 };
             },
@@ -300,6 +308,27 @@
                         }
                     } else {
                         table.columns.push(columnName);
+                    }
+                },
+                async runJob() {
+                    this.running = true;
+
+                    try {
+                        const response = await fetch(`/api/jobs/${this.jobId}/run`, {
+                            method: 'POST'
+                        });
+
+                        if (!response.ok) {
+                            const error = await response.json();
+                            throw new Error(error.message || 'Failed to run job');
+                        }
+
+                        const result = await response.json();
+                        this.showAlert('success', result.message || 'Job started successfully');
+                    } catch (error) {
+                        this.showAlert('danger', error.message);
+                    } finally {
+                        this.running = false;
                     }
                 },
                 async saveJob() {

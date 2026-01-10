@@ -5,6 +5,7 @@ import org.aburavov.pgbackupui.dto.ErrorResponse;
 import org.aburavov.pgbackupui.dto.TableSchema;
 import org.aburavov.pgbackupui.models.Connection;
 import org.aburavov.pgbackupui.services.ConnectionService;
+import org.aburavov.pgbackupui.services.DbService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -24,9 +25,11 @@ import java.util.stream.Collectors;
 public class ConnectionController {
 
     private final ConnectionService connectionService;
+    private final DbService dbService;
 
-    public ConnectionController(ConnectionService connectionService) {
+    public ConnectionController(ConnectionService connectionService, DbService dbService) {
         this.connectionService = connectionService;
+        this.dbService = dbService;
     }
 
     @GetMapping
@@ -72,7 +75,7 @@ public class ConnectionController {
             Connection connection = connectionService.findById(id)
                     .orElseThrow(() -> new IllegalArgumentException("Connection not found: " + id));
 
-            List<TableSchema> schema = connectionService.getDatabaseSchema(connection);
+            List<TableSchema> schema = dbService.getDatabaseSchema(connection);
             return ResponseEntity.ok(schema);
         } catch (SQLException e) {
             Map<String, String> error = new HashMap<>();

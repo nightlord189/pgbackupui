@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import org.aburavov.pgbackupui.dto.ErrorResponse;
 import org.aburavov.pgbackupui.dto.JobDto;
 import org.aburavov.pgbackupui.models.Job;
+import org.aburavov.pgbackupui.services.BackupService;
 import org.aburavov.pgbackupui.services.JobService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -22,9 +23,11 @@ import java.util.stream.Collectors;
 public class JobController {
 
     private final JobService jobService;
+    private final BackupService backupService;
 
-    public JobController(JobService jobService) {
+    public JobController(JobService jobService, BackupService backupService) {
         this.jobService = jobService;
+        this.backupService = backupService;
     }
 
     @GetMapping
@@ -62,6 +65,29 @@ public class JobController {
     public ResponseEntity<Void> deleteJob(@PathVariable("id") String id) {
         jobService.delete(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{id}/run")
+    public ResponseEntity<?> runJob(@PathVariable("id") String id) {
+        try {
+            Job job = jobService.findById(id)
+                    .orElseThrow(() -> new IllegalArgumentException("Job not found: " + id));
+
+            String backupPath = backupService.executeBackup(job);
+
+            Map<String, String> response = new HashMap<>();
+            response.put("message", "Backup completed successfully");
+            response.put("path", backupPath);
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(error);
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("message", "Backup failed: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

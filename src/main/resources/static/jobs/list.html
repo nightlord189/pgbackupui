@@ -99,13 +99,16 @@
                         </td>
                         <td>
                             <div class="btn-group btn-group-sm">
-                                <a :href="'/jobs/' + job.id" class="btn btn-outline-info">
+                                <button @click="runJob(job)" class="btn btn-outline-success" title="Run job">
+                                    <i class="bi bi-play-fill"></i>
+                                </button>
+                                <a :href="'/jobs/' + job.id" class="btn btn-outline-info" title="View details">
                                     <i class="bi bi-eye"></i>
                                 </a>
-                                <a :href="'/jobs/edit?id=' + job.id" class="btn btn-outline-primary">
+                                <a :href="'/jobs/edit?id=' + job.id" class="btn btn-outline-primary" title="Edit">
                                     <i class="bi bi-pencil"></i>
                                 </a>
-                                <button @click="confirmDelete(job)" class="btn btn-outline-danger">
+                                <button @click="confirmDelete(job)" class="btn btn-outline-danger" title="Delete">
                                     <i class="bi bi-trash"></i>
                                 </button>
                             </div>
@@ -203,6 +206,23 @@
                         });
                     } catch (error) {
                         console.error('Failed to load storages:', error);
+                    }
+                },
+                async runJob(job) {
+                    try {
+                        const response = await fetch(`/api/jobs/${job.id}/run`, {
+                            method: 'POST'
+                        });
+
+                        if (!response.ok) {
+                            const error = await response.json();
+                            throw new Error(error.message || 'Failed to run job');
+                        }
+
+                        const result = await response.json();
+                        this.showAlert('success', result.message || 'Job started successfully');
+                    } catch (error) {
+                        this.showAlert('danger', error.message);
                     }
                 },
                 confirmDelete(job) {

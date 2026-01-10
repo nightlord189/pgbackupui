@@ -1,10 +1,18 @@
 package org.aburavov.pgbackupui.services;
 
+import org.aburavov.pgbackupui.dto.TableBackupData;
 import org.aburavov.pgbackupui.models.Storage;
 import org.aburavov.pgbackupui.models.StorageType;
 import org.aburavov.pgbackupui.repositories.StorageRepository;
 import org.springframework.stereotype.Service;
 
+import java.io.BufferedWriter;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
 
@@ -99,6 +107,36 @@ public class StorageService {
             }
             if (!isUpdate && (storage.getSecretKey() == null || storage.getSecretKey().isBlank())) {
                 throw new IllegalArgumentException("Secret key is required for S3 storage type");
+            }
+        }
+    }
+
+    public String writeBackup(Storage storage, List<TableBackupData> backupDataList) throws IOException {
+        if (storage.getType() != StorageType.LOCAL) {
+            throw new UnsupportedOperationException("Only LOCAL storage type is supported currently");
+        }
+
+        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
+        String backupDirName = "backup_" + timestamp;
+        Path backupPath = Paths.get(storage.getPath(), backupDirName);
+
+        Files.createDirectories(backupPath);
+
+        for (TableBackupData tableData : backupDataList) {
+            writeTableToFile(backupPath, tableData);
+        }
+
+        return backupPath.toString();
+    }
+
+    private void writeTableToFile(Path backupPath, TableBackupData tableData) throws IOException {
+        String tableName = tableData.getTableName();
+        Path sqlFilePath = backupPath.resolve(tableName + ".sql");
+
+        try (BufferedWriter writer = Files.newBufferedWriter(sqlFilePath)) {
+            for (String sqlStatement : tableData.getSqlStatements()) {
+                writer.write(sqlStatement);
+                writer.newLine();
             }
         }
     }

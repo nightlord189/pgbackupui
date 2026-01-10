@@ -36,14 +36,25 @@
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <h2><i class="bi bi-eye"></i> Job Details</h2>
                     <div>
+                        <button v-if="job" @click="runJob" class="btn btn-success me-2" :disabled="running">
+                            <span v-if="running" class="spinner-border spinner-border-sm me-1"></span>
+                            <i v-else class="bi bi-play-fill"></i>
+                            {{ running ? 'Running...' : 'Run Job' }}
+                        </button>
                         <a v-if="job" :href="'/jobs/edit?id=' + job.id"
-                           class="btn btn-primary">
+                           class="btn btn-primary me-2">
                             <i class="bi bi-pencil"></i> Edit
                         </a>
                         <a href="/jobs" class="btn btn-secondary">
                             <i class="bi bi-arrow-left"></i> Back
                         </a>
                     </div>
+                </div>
+
+                <!-- Alert Messages -->
+                <div v-if="alert.show" :class="'alert alert-' + alert.type + ' alert-dismissible fade show'">
+                    {{ alert.message }}
+                    <button type="button" class="btn-close" @click="alert.show = false"></button>
                 </div>
 
                 <!-- Loading -->
@@ -156,7 +167,9 @@
                     job: null,
                     connection: null,
                     storage: null,
-                    loading: true
+                    loading: true,
+                    running: false,
+                    alert: { show: false, type: 'success', message: '' }
                 };
             },
             async mounted() {
@@ -210,6 +223,31 @@
                     if (!dateTimeStr) return '';
                     const date = new Date(dateTimeStr);
                     return date.toLocaleString();
+                },
+                async runJob() {
+                    this.running = true;
+
+                    try {
+                        const response = await fetch(`/api/jobs/${this.jobId}/run`, {
+                            method: 'POST'
+                        });
+
+                        if (!response.ok) {
+                            const error = await response.json();
+                            throw new Error(error.message || 'Failed to run job');
+                        }
+
+                        const result = await response.json();
+                        this.showAlert('success', result.message || 'Job started successfully');
+                    } catch (error) {
+                        this.showAlert('danger', error.message);
+                    } finally {
+                        this.running = false;
+                    }
+                },
+                showAlert(type, message) {
+                    this.alert = { show: true, type, message };
+                    setTimeout(() => this.alert.show = false, 5000);
                 }
             }
         }).mount('#app');
