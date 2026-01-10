@@ -1,4 +1,5 @@
 version: '3.8'
+name: pgbackupui
 services:
   mongo:
     image: mongo:7

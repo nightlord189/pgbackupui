@@ -62,7 +62,6 @@ public class StorageService {
         existing.setPrefix(storage.getPrefix());
         existing.setAccessKey(storage.getAccessKey());
 
-        // Only update secret key if provided
         if (storage.getSecretKey() != null && !storage.getSecretKey().isBlank()) {
             existing.setSecretKey(storage.getSecretKey());
         }
@@ -98,7 +97,6 @@ public class StorageService {
             if (storage.getAccessKey() == null || storage.getAccessKey().isBlank()) {
                 throw new IllegalArgumentException("Access key is required for S3 storage type");
             }
-            // Secret key is required only on create, not on update (can be kept as is)
             if (!isUpdate && (storage.getSecretKey() == null || storage.getSecretKey().isBlank())) {
                 throw new IllegalArgumentException("Secret key is required for S3 storage type");
             }

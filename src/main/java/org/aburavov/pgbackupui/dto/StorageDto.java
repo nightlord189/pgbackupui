@@ -20,10 +20,8 @@ public class StorageDto {
     @NotNull(message = "Storage type is required")
     private StorageType type;
 
-    // For LOCAL storage
     private String path;
 
-    // For S3 storage
     private String bucket;
     private String region;
     private String prefix;

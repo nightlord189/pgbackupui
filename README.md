@@ -14,5 +14,53 @@
 Что храним?
 1) connections - name, type (postgresql), host, port, db, username, password
 2) storages - name, type (local, s3), а дальше уже специфичные поля
-3) jobs - name, connection_id, storage_id, retention_count, schedule, tables (тут и колонки)
+3) jobs - name, connection_id, storage_id, retention_count, schedule, tables (тут и колонки опционально, либо селектим все (*))
 4) job_runs - job_id, started_at, finished_at, status, error_message, triggered_by, files_size
+
+## Запуск
+
+### 1. Запуск MongoDB (обязательно)
+```bash
+make run
+# или
+docker-compose up -d
+```
+
+- База: `pgbackupui`
+- Пользователь: `admin`
+- Пароль: `password`
+
+### 2. Запуск тестовой PostgreSQL базы (опционально)
+Для тестирования функционала загрузки схемы БД:
+```bash
+make run-test-db
+# или
+docker-compose -f docker-compose-test.yml up -d
+```
+
+Параметры подключения к тестовой БД:
+- Host: `localhost`
+- Port: `5433`
+- Database: `testdb`
+- Username: `postgres`
+- Password: `postgres`
+- Таблицы: `users` (3 записи), `orders` (4 записи)
+
+### 3. Запуск приложения
+```bash
+mvn spring-boot:run
+```
+
+Приложение будет доступно на http://localhost:8080
+
+### Остановка сервисов
+```bash
+# Остановить MongoDB
+make stop
+
+# Остановить PostgreSQL
+make stop-test-db
+
+# Остановить всё
+make stop && make stop-test-db
+```

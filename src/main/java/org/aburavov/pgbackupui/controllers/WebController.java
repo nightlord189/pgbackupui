@@ -82,4 +82,36 @@ public class WebController {
                 .contentType(MediaType.TEXT_HTML)
                 .body(resource);
     }
+
+    @GetMapping("/jobs")
+    public ResponseEntity<Resource> listJobs() {
+        Resource resource = new ClassPathResource("static/jobs/list.html");
+        return ResponseEntity.ok()
+                .contentType(MediaType.TEXT_HTML)
+                .body(resource);
+    }
+
+    @GetMapping("/jobs/new")
+    public ResponseEntity<Resource> newJob() {
+        Resource resource = new ClassPathResource("static/jobs/new.html");
+        return ResponseEntity.ok()
+                .contentType(MediaType.TEXT_HTML)
+                .body(resource);
+    }
+
+    @GetMapping("/jobs/edit")
+    public ResponseEntity<Resource> editJob() {
+        Resource resource = new ClassPathResource("static/jobs/edit.html");
+        return ResponseEntity.ok()
+                .contentType(MediaType.TEXT_HTML)
+                .body(resource);
+    }
+
+    @GetMapping("/jobs/{id}")
+    public ResponseEntity<Resource> viewJob(@PathVariable("id") String id) {
+        Resource resource = new ClassPathResource("static/jobs/view.html");
+        return ResponseEntity.ok()
+                .contentType(MediaType.TEXT_HTML)
+                .body(resource);
+    }
 }

@@ -2,6 +2,7 @@ package org.aburavov.pgbackupui.controllers;
 
 import org.aburavov.pgbackupui.dto.ConnectionDto;
 import org.aburavov.pgbackupui.dto.ErrorResponse;
+import org.aburavov.pgbackupui.dto.TableSchema;
 import org.aburavov.pgbackupui.models.Connection;
 import org.aburavov.pgbackupui.services.ConnectionService;
 import org.springframework.http.HttpStatus;
@@ -11,6 +12,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
+import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
@@ -62,6 +64,25 @@ public class ConnectionController {
     public ResponseEntity<Void> deleteConnection(@PathVariable("id") String id) {
         connectionService.delete(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{id}/schema")
+    public ResponseEntity<?> getDatabaseSchema(@PathVariable("id") String id) {
+        try {
+            Connection connection = connectionService.findById(id)
+                    .orElseThrow(() -> new IllegalArgumentException("Connection not found: " + id));
+
+            List<TableSchema> schema = connectionService.getDatabaseSchema(connection);
+            return ResponseEntity.ok(schema);
+        } catch (SQLException e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("message", "Failed to connect to database: " + e.getMessage());
+            return ResponseEntity.badRequest().body(error);
+        } catch (IllegalArgumentException e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(error);
+        }
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

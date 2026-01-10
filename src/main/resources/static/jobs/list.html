@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Storage Locations</title>
+    <title>Backup Jobs</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css">
     <link rel="stylesheet" href="/css/style.css">
@@ -20,10 +20,10 @@
                         <a class="nav-link" href="/connections">Connections</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link active" href="/storages">Storages</a>
+                        <a class="nav-link" href="/storages">Storages</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="/jobs">Jobs</a>
+                        <a class="nav-link active" href="/jobs">Jobs</a>
                     </li>
                 </ul>
             </div>
@@ -32,9 +32,9 @@
 
     <main class="container-fluid py-4" id="app">
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h2><i class="bi bi-hdd"></i> Storage Locations</h2>
-            <a href="/storages/new" class="btn btn-primary">
-                <i class="bi bi-plus-circle"></i> New Storage
+            <h2><i class="bi bi-calendar-check"></i> Backup Jobs</h2>
+            <a href="/jobs/new" class="btn btn-primary">
+                <i class="bi bi-plus-circle"></i> New Job
             </a>
         </div>
 
@@ -50,50 +50,62 @@
         </div>
 
         <!-- Empty State -->
-        <div v-else-if="storages.length === 0" class="alert alert-info">
-            <i class="bi bi-info-circle"></i> No storage locations configured yet.
-            <a href="/storages/new">Create your first storage</a>.
+        <div v-else-if="jobs.length === 0" class="alert alert-info">
+            <i class="bi bi-info-circle"></i> No backup jobs configured yet.
+            <a href="/jobs/new">Create your first job</a>.
         </div>
 
-        <!-- Storages Table -->
+        <!-- Jobs Table -->
         <div v-else class="table-responsive">
             <table class="table table-hover">
                 <thead class="table-dark">
                     <tr>
                         <th>Name</th>
-                        <th>Type</th>
-                        <th>Location</th>
+                        <th>Connection</th>
+                        <th>Storage</th>
+                        <th>Schedule</th>
+                        <th>Retention</th>
+                        <th>Tables</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="storage in storages" :key="storage.id">
-                        <td>{{ storage.name }}</td>
+                    <tr v-for="job in jobs" :key="job.id">
+                        <td>{{ job.name }}</td>
                         <td>
-                            <span v-if="storage.type === 'LOCAL'" class="badge bg-secondary">
-                                <i class="bi bi-folder"></i> Local
+                            <span v-if="connections[job.connectionId]">
+                                {{ connections[job.connectionId].name }}
                             </span>
-                            <span v-else class="badge bg-info">
-                                <i class="bi bi-cloud"></i> S3
-                            </span>
+                            <span v-else class="text-muted">Loading...</span>
                         </td>
                         <td>
-                            <span v-if="storage.type === 'LOCAL'">{{ storage.path }}</span>
-                            <span v-else>
-                                {{ storage.bucket }}
-                                <span v-if="storage.prefix">/{{ storage.prefix }}</span>
-                                <span class="text-muted"> ({{ storage.region }})</span>
+                            <span v-if="storages[job.storageId]">
+                                {{ storages[job.storageId].name }}
                             </span>
+                            <span v-else class="text-muted">Loading...</span>
+                        </td>
+                        <td>
+                            <code v-if="job.schedule">{{ job.schedule }}</code>
+                            <span v-else class="text-muted">Manual</span>
+                        </td>
+                        <td>
+                            <span class="badge bg-secondary">{{ job.retentionCount }}</span>
+                        </td>
+                        <td>
+                            <span v-if="job.tables && job.tables.length > 0">
+                                {{ job.tables.length }} table(s)
+                            </span>
+                            <span v-else class="text-muted">All tables</span>
                         </td>
                         <td>
                             <div class="btn-group btn-group-sm">
-                                <a :href="'/storages/' + storage.id" class="btn btn-outline-info">
+                                <a :href="'/jobs/' + job.id" class="btn btn-outline-info">
                                     <i class="bi bi-eye"></i>
                                 </a>
-                                <a :href="'/storages/edit?id=' + storage.id" class="btn btn-outline-primary">
+                                <a :href="'/jobs/edit?id=' + job.id" class="btn btn-outline-primary">
                                     <i class="bi bi-pencil"></i>
                                 </a>
-                                <button @click="confirmDelete(storage)" class="btn btn-outline-danger">
+                                <button @click="confirmDelete(job)" class="btn btn-outline-danger">
                                     <i class="bi bi-trash"></i>
                                 </button>
                             </div>
@@ -112,12 +124,12 @@
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body">
-                        <p>Are you sure you want to delete storage <strong>{{ selectedStorage?.name }}</strong>?</p>
+                        <p>Are you sure you want to delete job <strong>{{ selectedJob?.name }}</strong>?</p>
                         <p class="text-danger">This action cannot be undone.</p>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="button" class="btn btn-danger" @click="deleteStorage">Delete</button>
+                        <button type="button" class="btn btn-danger" @click="deleteJob">Delete</button>
                     </div>
                 </div>
             </div>
@@ -132,15 +144,17 @@
         createApp({
             data() {
                 return {
-                    storages: [],
+                    jobs: [],
+                    connections: {},
+                    storages: {},
                     loading: true,
                     alert: { show: false, type: 'success', message: '' },
-                    selectedStorage: null,
+                    selectedJob: null,
                     deleteModal: null
                 };
             },
             async mounted() {
-                await this.loadStorages();
+                await this.loadJobs();
                 this.deleteModal = new bootstrap.Modal(this.$refs.deleteModal);
 
                 // Show success message from query param
@@ -149,34 +163,62 @@
                 if (msg) {
                     this.showAlert('success', msg);
                     // Clean URL
-                    window.history.replaceState({}, '', '/storages');
+                    window.history.replaceState({}, '', '/jobs');
                 }
             },
             methods: {
-                async loadStorages() {
+                async loadJobs() {
                     try {
-                        const response = await fetch('/api/storages');
-                        this.storages = await response.json();
+                        const response = await fetch('/api/jobs');
+                        this.jobs = await response.json();
+
+                        // Load connections and storages for display
+                        await this.loadConnections();
+                        await this.loadStorages();
                     } catch (error) {
-                        this.showAlert('danger', 'Failed to load storages');
+                        this.showAlert('danger', 'Failed to load jobs');
                     } finally {
                         this.loading = false;
                     }
                 },
-                confirmDelete(storage) {
-                    this.selectedStorage = storage;
+                async loadConnections() {
+                    try {
+                        const response = await fetch('/api/connections');
+                        const connectionsList = await response.json();
+                        // Convert array to map for easy lookup
+                        connectionsList.forEach(conn => {
+                            this.connections[conn.id] = conn;
+                        });
+                    } catch (error) {
+                        console.error('Failed to load connections:', error);
+                    }
+                },
+                async loadStorages() {
+                    try {
+                        const response = await fetch('/api/storages');
+                        const storagesList = await response.json();
+                        // Convert array to map for easy lookup
+                        storagesList.forEach(storage => {
+                            this.storages[storage.id] = storage;
+                        });
+                    } catch (error) {
+                        console.error('Failed to load storages:', error);
+                    }
+                },
+                confirmDelete(job) {
+                    this.selectedJob = job;
                     this.deleteModal.show();
                 },
-                async deleteStorage() {
+                async deleteJob() {
                     try {
-                        await fetch(`/api/storages/${this.selectedStorage.id}`, {
+                        await fetch(`/api/jobs/${this.selectedJob.id}`, {
                             method: 'DELETE'
                         });
-                        this.showAlert('success', 'Storage deleted successfully');
-                        await this.loadStorages();
+                        this.showAlert('success', 'Job deleted successfully');
+                        await this.loadJobs();
                         this.deleteModal.hide();
                     } catch (error) {
-                        this.showAlert('danger', 'Failed to delete storage');
+                        this.showAlert('danger', 'Failed to delete job');
                     }
                 },
                 showAlert(type, message) {
