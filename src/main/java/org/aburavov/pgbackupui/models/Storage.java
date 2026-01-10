@@ -131,4 +131,30 @@ public class Storage {
     public void updateTimestamp() {
         this.updatedAt = LocalDateTime.now();
     }
+
+    /**
+     * Validates storage-specific fields based on storage type
+     * @param isUpdate true if this is an update operation (secretKey is optional), false for create
+     * @throws IllegalArgumentException if validation fails
+     */
+    public void validateTypeSpecificFields(boolean isUpdate) {
+        if (this.type == StorageType.LOCAL) {
+            if (this.path == null || this.path.isBlank()) {
+                throw new IllegalArgumentException("Path is required for LOCAL storage type");
+            }
+        } else if (this.type == StorageType.S3) {
+            if (this.bucket == null || this.bucket.isBlank()) {
+                throw new IllegalArgumentException("Bucket is required for S3 storage type");
+            }
+            if (this.region == null || this.region.isBlank()) {
+                throw new IllegalArgumentException("Region is required for S3 storage type");
+            }
+            if (this.accessKey == null || this.accessKey.isBlank()) {
+                throw new IllegalArgumentException("Access key is required for S3 storage type");
+            }
+            if (!isUpdate && (this.secretKey == null || this.secretKey.isBlank())) {
+                throw new IllegalArgumentException("Secret key is required for S3 storage type");
+            }
+        }
+    }
 }

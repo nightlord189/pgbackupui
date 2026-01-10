@@ -9,12 +9,9 @@ import org.aburavov.pgbackupui.repositories.JobRunRepository;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.SQLException;
 import java.util.List;
-import java.util.stream.Stream;
 
 @Service
 public class BackupService {
@@ -50,7 +47,10 @@ public class BackupService {
 
             String backupPath = storageService.writeBackup(storage, backupDataList);
 
-            Long totalSize = calculateDirectorySize(backupPath);
+            // Apply retention policy to clean up old backups
+            storageService.applyRetentionPolicy(storage, job.getRetentionCount());
+
+            Long totalSize = storageService.calculateDirectorySize(backupPath, storage.getType());
             String folderName = Paths.get(backupPath).getFileName().toString();
             jobRun.markSuccess(folderName, totalSize);
             jobRunRepository.save(jobRun);
@@ -60,22 +60,6 @@ public class BackupService {
             jobRun.markFailed(e.getMessage());
             jobRunRepository.save(jobRun);
             throw e;
-        }
-    }
-
-    private Long calculateDirectorySize(String directoryPath) throws IOException {
-        Path path = Paths.get(directoryPath);
-        try (Stream<Path> walk = Files.walk(path)) {
-            return walk
-                    .filter(Files::isRegularFile)
-                    .mapToLong(p -> {
-                        try {
-                            return Files.size(p);
-                        } catch (IOException e) {
-                            return 0L;
-                        }
-                    })
-                    .sum();
         }
     }
 }

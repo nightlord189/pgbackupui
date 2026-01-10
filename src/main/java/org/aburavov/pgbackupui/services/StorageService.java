@@ -5,16 +5,16 @@ import org.aburavov.pgbackupui.models.Storage;
 import org.aburavov.pgbackupui.models.StorageType;
 import org.aburavov.pgbackupui.repositories.JobRepository;
 import org.aburavov.pgbackupui.repositories.StorageRepository;
+import org.aburavov.pgbackupui.services.storage.FileStorageService;
+import org.aburavov.pgbackupui.services.storage.IStorageService;
 import org.springframework.stereotype.Service;
 
-import java.io.BufferedWriter;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -22,10 +22,23 @@ public class StorageService {
 
     private final StorageRepository storageRepository;
     private final JobRepository jobRepository;
+    private final Map<StorageType, IStorageService> storageServices;
 
-    public StorageService(StorageRepository storageRepository, JobRepository jobRepository) {
+    public StorageService(StorageRepository storageRepository, JobRepository jobRepository,
+                          FileStorageService fileStorageService) {
         this.storageRepository = storageRepository;
         this.jobRepository = jobRepository;
+        this.storageServices = new EnumMap<>(StorageType.class);
+        this.storageServices.put(StorageType.LOCAL, fileStorageService);
+        // S3 implementation will be added here later
+    }
+
+    private IStorageService getStorageService(StorageType type) {
+        IStorageService service = storageServices.get(type);
+        if (service == null) {
+            throw new UnsupportedOperationException("Storage type " + type + " is not supported yet");
+        }
+        return service;
     }
 
     public List<Storage> findAll() {
@@ -47,7 +60,7 @@ public class StorageService {
             );
         }
 
-        validateStorageFields(storage, false);
+        storage.validateTypeSpecificFields(false);
 
         return storageRepository.save(storage);
     }
@@ -63,7 +76,7 @@ public class StorageService {
             );
         }
 
-        validateStorageFields(storage, true);
+        storage.validateTypeSpecificFields(true);
 
         existing.setName(storage.getName());
         existing.setType(storage.getType());
@@ -96,54 +109,38 @@ public class StorageService {
         return storageRepository.existsByName(name);
     }
 
-    private void validateStorageFields(Storage storage, boolean isUpdate) {
-        if (storage.getType() == StorageType.LOCAL) {
-            if (storage.getPath() == null || storage.getPath().isBlank()) {
-                throw new IllegalArgumentException("Path is required for LOCAL storage type");
-            }
-        } else if (storage.getType() == StorageType.S3) {
-            if (storage.getBucket() == null || storage.getBucket().isBlank()) {
-                throw new IllegalArgumentException("Bucket is required for S3 storage type");
-            }
-            if (storage.getRegion() == null || storage.getRegion().isBlank()) {
-                throw new IllegalArgumentException("Region is required for S3 storage type");
-            }
-            if (storage.getAccessKey() == null || storage.getAccessKey().isBlank()) {
-                throw new IllegalArgumentException("Access key is required for S3 storage type");
-            }
-            if (!isUpdate && (storage.getSecretKey() == null || storage.getSecretKey().isBlank())) {
-                throw new IllegalArgumentException("Secret key is required for S3 storage type");
-            }
-        }
-    }
-
     public String writeBackup(Storage storage, List<TableBackupData> backupDataList) throws IOException {
-        if (storage.getType() != StorageType.LOCAL) {
-            throw new UnsupportedOperationException("Only LOCAL storage type is supported currently");
-        }
+        IStorageService storageService = getStorageService(storage.getType());
 
         String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
         String backupDirName = "backup_" + timestamp;
-        Path backupPath = Paths.get(storage.getPath(), backupDirName);
 
-        Files.createDirectories(backupPath);
+        String backupPath = storageService.createDirectory(storage.getPath(), backupDirName);
 
         for (TableBackupData tableData : backupDataList) {
-            writeTableToFile(backupPath, tableData);
+            storageService.writeFile(backupPath, tableData);
         }
 
-        return backupPath.toString();
+        return backupPath;
     }
 
-    private void writeTableToFile(Path backupPath, TableBackupData tableData) throws IOException {
-        String tableName = tableData.getTableName();
-        Path sqlFilePath = backupPath.resolve(tableName + ".sql");
+    public void applyRetentionPolicy(Storage storage, int retentionCount) throws IOException {
+        IStorageService storageService = getStorageService(storage.getType());
 
-        try (BufferedWriter writer = Files.newBufferedWriter(sqlFilePath)) {
-            for (String sqlStatement : tableData.getSqlStatements()) {
-                writer.write(sqlStatement);
-                writer.newLine();
+        // Get all backup directories sorted by modification time (newest first)
+        List<String> backupDirs = storageService.getBackupDirectories(storage.getPath());
+
+        // Keep only the most recent N backups, delete the rest
+        if (backupDirs.size() > retentionCount) {
+            List<String> dirsToDelete = backupDirs.subList(retentionCount, backupDirs.size());
+            for (String dirToDelete : dirsToDelete) {
+                storageService.deleteDirectory(storage.getPath(), dirToDelete);
             }
         }
+    }
+
+    public long calculateDirectorySize(String directoryPath, StorageType storageType) throws IOException {
+        IStorageService storageService = getStorageService(storageType);
+        return storageService.calculateDirectorySize(directoryPath);
     }
 }
