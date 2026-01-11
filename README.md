@@ -51,3 +51,20 @@ mvn spring-boot:run
 ```
 
 Доступно по http://localhost:8080
+
+## Скриншоты
+
+### Список подключений
+![Connections](docs/Screenshot01.png)
+
+### Список хранилищ
+![Storages](docs/Screenshot02.png)
+
+### Список джоб
+![Jobs](docs/Screenshot03.png)
+
+### Настройка джобы
+![Job Configuration](docs/Screenshot04.png)
+
+### История запусков джобы
+![Job Runs](docs/Screenshot05.png)
