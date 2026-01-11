@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job Run History</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">
+                <i class="bi bi-database"></i> PG Backup UI
+            </a>
+            <div class="collapse navbar-collapse">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/connections">Connections</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/storages">Storages</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/jobs">Jobs</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container-fluid py-4" id="app">
+        <div class="row">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div>
+                        <h2><i class="bi bi-clock-history"></i> Run History</h2>
+                        <p v-if="job" class="text-muted mb-0">Job: <strong>{{ job.name }}</strong></p>
+                    </div>
+                    <a href="/jobs" class="btn btn-secondary">
+                        <i class="bi bi-arrow-left"></i> Back to Jobs
+                    </a>
+                </div>
+
+                <!-- Alert Messages -->
+                <div v-if="alert.show" :class="'alert alert-' + alert.type + ' alert-dismissible fade show'">
+                    {{ alert.message }}
+                    <button type="button" class="btn-close" @click="alert.show = false"></button>
+                </div>
+
+                <!-- Loading State -->
+                <div v-if="loading" class="text-center py-5">
+                    <div class="spinner-border text-primary"></div>
+                </div>
+
+                <!-- Empty State -->
+                <div v-else-if="runs.length === 0" class="alert alert-info">
+                    <i class="bi bi-info-circle"></i> No run history available for this job yet.
+                </div>
+
+                <!-- Runs Table -->
+                <div v-else class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Status</th>
+                                <th>Folder Name</th>
+                                <th>Started At</th>
+                                <th>Finished At</th>
+                                <th>Duration</th>
+                                <th>Triggered By</th>
+                                <th>Files Size</th>
+                                <th>Error Message</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="run in runs" :key="run.id">
+                                <td>
+                                    <span :class="getStatusBadgeClass(run.status)">
+                                        <i :class="getStatusIcon(run.status)"></i>
+                                        {{ run.status }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <code v-if="run.folderName">{{ run.folderName }}</code>
+                                    <span v-else class="text-muted">-</span>
+                                </td>
+                                <td>
+                                    <small>{{ formatDateTime(run.startedAt) }}</small>
+                                </td>
+                                <td>
+                                    <small v-if="run.finishedAt">{{ formatDateTime(run.finishedAt) }}</small>
+                                    <span v-else class="text-muted">-</span>
+                                </td>
+                                <td>
+                                    <small v-if="run.finishedAt">{{ formatDuration(run.startedAt, run.finishedAt) }}</small>
+                                    <span v-else class="text-muted">-</span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-secondary">{{ run.triggeredBy || 'MANUAL' }}</span>
+                                </td>
+                                <td>
+                                    <span v-if="run.filesSize">{{ formatFileSize(run.filesSize) }}</span>
+                                    <span v-else class="text-muted">-</span>
+                                </td>
+                                <td>
+                                    <span v-if="run.errorMessage" class="text-danger">
+                                        <i class="bi bi-exclamation-triangle"></i>
+                                        {{ run.errorMessage }}
+                                    </span>
+                                    <span v-else class="text-muted">-</span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue@3.4.15/dist/vue.global.js"></script>
+    <script>
+        const { createApp } = Vue;
+
+        createApp({
+            data() {
+                return {
+                    jobId: null,
+                    job: null,
+                    runs: [],
+                    loading: true,
+                    alert: { show: false, type: 'success', message: '' }
+                };
+            },
+            async mounted() {
+                const pathParts = window.location.pathname.split('/');
+                this.jobId = pathParts[2];
+
+                if (!this.jobId) {
+                    window.location.href = '/jobs';
+                    return;
+                }
+
+                await this.loadJob();
+                await this.loadRuns();
+            },
+            methods: {
+                async loadJob() {
+                    try {
+                        const response = await fetch(`/api/jobs/${this.jobId}`);
+                        if (response.ok) {
+                            this.job = await response.json();
+                        }
+                    } catch (error) {
+                        this.showAlert('danger', 'Failed to load job details');
+                    }
+                },
+                async loadRuns() {
+                    try {
+                        const response = await fetch(`/api/jobs/${this.jobId}/runs`);
+                        if (response.ok) {
+                            this.runs = await response.json();
+                        } else {
+                            throw new Error('Failed to load runs');
+                        }
+                    } catch (error) {
+                        this.showAlert('danger', error.message);
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+                formatDateTime(dateTime) {
+                    if (!dateTime) return '-';
+                    const date = new Date(dateTime);
+                    return date.toLocaleString('ru-RU', {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit'
+                    });
+                },
+                formatDuration(startedAt, finishedAt) {
+                    if (!startedAt || !finishedAt) return '-';
+                    const start = new Date(startedAt);
+                    const finish = new Date(finishedAt);
+                    const durationMs = finish - start;
+                    const seconds = Math.floor(durationMs / 1000);
+                    const minutes = Math.floor(seconds / 60);
+                    const hours = Math.floor(minutes / 60);
+
+                    if (hours > 0) {
+                        return `${hours}h ${minutes % 60}m ${seconds % 60}s`;
+                    } else if (minutes > 0) {
+                        return `${minutes}m ${seconds % 60}s`;
+                    } else {
+                        return `${seconds}s`;
+                    }
+                },
+                formatFileSize(bytes) {
+                    if (!bytes) return '-';
+                    const kb = bytes / 1024;
+                    const mb = kb / 1024;
+                    const gb = mb / 1024;
+
+                    if (gb >= 1) {
+                        return `${gb.toFixed(2)} GB`;
+                    } else if (mb >= 1) {
+                        return `${mb.toFixed(2)} MB`;
+                    } else if (kb >= 1) {
+                        return `${kb.toFixed(2)} KB`;
+                    } else {
+                        return `${bytes} B`;
+                    }
+                },
+                getStatusBadgeClass(status) {
+                    const classes = {
+                        'SUCCESS': 'badge bg-success',
+                        'FAILED': 'badge bg-danger',
+                        'RUNNING': 'badge bg-warning text-dark'
+                    };
+                    return classes[status] || 'badge bg-secondary';
+                },
+                getStatusIcon(status) {
+                    const icons = {
+                        'SUCCESS': 'bi bi-check-circle',
+                        'FAILED': 'bi bi-x-circle',
+                        'RUNNING': 'bi bi-hourglass-split'
+                    };
+                    return icons[status] || 'bi bi-question-circle';
+                },
+                showAlert(type, message) {
+                    this.alert = { show: true, type, message };
+                    setTimeout(() => this.alert.show = false, 5000);
+                }
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>

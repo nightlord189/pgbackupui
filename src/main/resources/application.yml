@@ -1,0 +1,21 @@
+server:
+  port: 8080
+
+spring:
+  data:
+    mongodb:
+      host: localhost
+      port: 27017
+      database: pgbackupui
+      username: admin
+      password: password
+      authentication-database: admin
+      auto-index-creation: true
+
+logging:
+  level:
+    root: INFO
+    org.springframework.web: DEBUG
+    org.aburavov.pgbackupui: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"

@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New Connection</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">
+                <i class="bi bi-database"></i> PG Backup UI
+            </a>
+            <div class="collapse navbar-collapse">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/connections">Connections</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/storages">Storages</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/jobs">Jobs</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container-fluid py-4" id="app">
+        <div class="row">
+            <div class="col-md-8 offset-md-2">
+                <h2 class="mb-4">
+                    <i class="bi bi-plus-circle"></i> New Connection
+                </h2>
+
+                <!-- Alert Messages -->
+                <div v-if="alert.show" :class="'alert alert-' + alert.type + ' alert-dismissible'">
+                    {{ alert.message }}
+                    <button type="button" class="btn-close" @click="alert.show = false"></button>
+                </div>
+
+                <form @submit.prevent="submitForm" novalidate>
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Connection Name *</label>
+                        <input type="text" class="form-control" id="name"
+                               v-model="form.name"
+                               :class="{ 'is-invalid': errors.name }"
+                               placeholder="My Production DB">
+                        <div class="invalid-feedback">{{ errors.name }}</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="type" class="form-label">Database Type *</label>
+                        <select class="form-select" id="type"
+                                v-model="form.type"
+                                :class="{ 'is-invalid': errors.type }">
+                            <option value="POSTGRESQL">PostgreSQL</option>
+                        </select>
+                        <div class="invalid-feedback">{{ errors.type }}</div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-8 mb-3">
+                            <label for="host" class="form-label">Host *</label>
+                            <input type="text" class="form-control" id="host"
+                                   v-model="form.host"
+                                   :class="{ 'is-invalid': errors.host }"
+                                   placeholder="localhost">
+                            <div class="invalid-feedback">{{ errors.host }}</div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="port" class="form-label">Port *</label>
+                            <input type="number" class="form-control" id="port"
+                                   v-model.number="form.port"
+                                   :class="{ 'is-invalid': errors.port }"
+                                   placeholder="5432">
+                            <div class="invalid-feedback">{{ errors.port }}</div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="database" class="form-label">Database *</label>
+                        <input type="text" class="form-control" id="database"
+                               v-model="form.database"
+                               :class="{ 'is-invalid': errors.database }"
+                               placeholder="mydb">
+                        <div class="invalid-feedback">{{ errors.database }}</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="username" class="form-label">Username *</label>
+                        <input type="text" class="form-control" id="username"
+                               v-model="form.username"
+                               :class="{ 'is-invalid': errors.username }"
+                               placeholder="postgres">
+                        <div class="invalid-feedback">{{ errors.username }}</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Password *</label>
+                        <input type="password" class="form-control" id="password"
+                               v-model="form.password"
+                               :class="{ 'is-invalid': errors.password }">
+                        <div class="invalid-feedback">{{ errors.password }}</div>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary" :disabled="submitting">
+                            <span v-if="submitting" class="spinner-border spinner-border-sm"></span>
+                            <i v-else class="bi bi-check-circle"></i>
+                            {{ submitting ? 'Saving...' : 'Save Connection' }}
+                        </button>
+                        <a href="/connections" class="btn btn-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue@3.4.15/dist/vue.global.js"></script>
+    <script>
+        const { createApp } = Vue;
+
+        createApp({
+            data() {
+                return {
+                    form: {
+                        name: '',
+                        type: 'POSTGRESQL',
+                        host: '',
+                        port: 5432,
+                        database: '',
+                        username: '',
+                        password: ''
+                    },
+                    errors: {},
+                    alert: { show: false, type: 'danger', message: '' },
+                    submitting: false
+                };
+            },
+            methods: {
+                async submitForm() {
+                    this.errors = {};
+                    this.submitting = true;
+
+                    try {
+                        const response = await fetch('/api/connections', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(this.form)
+                        });
+
+                        if (response.ok) {
+                            window.location.href = '/connections?success=' +
+                                encodeURIComponent('Connection created successfully');
+                        } else if (response.status === 400) {
+                            const errorData = await response.json();
+                            if (errorData.validationErrors) {
+                                this.errors = errorData.validationErrors;
+                            } else {
+                                this.alert = { show: true, type: 'danger', message: errorData.message };
+                            }
+                        } else {
+                            throw new Error('Failed to create connection');
+                        }
+                    } catch (error) {
+                        this.alert = { show: true, type: 'danger', message: 'Failed to save connection' };
+                    } finally {
+                        this.submitting = false;
+                    }
+                }
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>

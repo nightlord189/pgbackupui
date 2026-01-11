@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>View Job</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">
+                <i class="bi bi-database"></i> PG Backup UI
+            </a>
+            <div class="collapse navbar-collapse">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/connections">Connections</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/storages">Storages</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/jobs">Jobs</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container-fluid py-4" id="app">
+        <div class="row">
+            <div class="col-md-8 offset-md-2">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2><i class="bi bi-eye"></i> Job Details</h2>
+                    <div>
+                        <button v-if="job" @click="runJob" class="btn btn-success me-2" :disabled="running">
+                            <span v-if="running" class="spinner-border spinner-border-sm me-1"></span>
+                            <i v-else class="bi bi-play-fill"></i>
+                            {{ running ? 'Running...' : 'Run Job' }}
+                        </button>
+                        <a v-if="job" :href="'/jobs/edit?id=' + job.id"
+                           class="btn btn-primary me-2">
+                            <i class="bi bi-pencil"></i> Edit
+                        </a>
+                        <a href="/jobs" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left"></i> Back
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Alert Messages -->
+                <div v-if="alert.show" :class="'alert alert-' + alert.type + ' alert-dismissible fade show'">
+                    {{ alert.message }}
+                    <button type="button" class="btn-close" @click="alert.show = false"></button>
+                </div>
+
+                <!-- Loading -->
+                <div v-if="loading" class="text-center py-5">
+                    <div class="spinner-border text-primary"></div>
+                </div>
+
+                <!-- Job Details -->
+                <div v-else-if="job" class="card">
+                    <div class="card-body">
+                        <dl class="row">
+                            <dt class="col-sm-3">Name</dt>
+                            <dd class="col-sm-9">{{ job.name }}</dd>
+
+                            <dt class="col-sm-3">Connection</dt>
+                            <dd class="col-sm-9">
+                                <span v-if="connection">
+                                    <strong>{{ connection.name }}</strong><br>
+                                    <small class="text-muted">
+                                        {{ connection.host }}:{{ connection.port }}/{{ connection.database }}
+                                    </small>
+                                </span>
+                                <span v-else class="text-muted">Loading...</span>
+                            </dd>
+
+                            <dt class="col-sm-3">Storage</dt>
+                            <dd class="col-sm-9">
+                                <span v-if="storage">
+                                    <strong>{{ storage.name }}</strong><br>
+                                    <span class="badge bg-secondary">{{ storage.type }}</span>
+                                    <small v-if="storage.type === 'LOCAL'" class="text-muted ms-2">
+                                        {{ storage.path }}
+                                    </small>
+                                    <small v-else class="text-muted ms-2">
+                                        {{ storage.bucket }}
+                                        <span v-if="storage.prefix">/{{ storage.prefix }}</span>
+                                        ({{ storage.region }})
+                                    </small>
+                                </span>
+                                <span v-else class="text-muted">Loading...</span>
+                            </dd>
+
+                            <dt class="col-sm-3">Retention Count</dt>
+                            <dd class="col-sm-9">
+                                <span class="badge bg-secondary">{{ job.retentionCount }}</span> backup(s)
+                            </dd>
+
+                            <dt class="col-sm-3">Schedule</dt>
+                            <dd class="col-sm-9">
+                                <code v-if="job.schedule">{{ job.schedule }}</code>
+                                <span v-else class="text-muted">Manual execution only</span>
+                            </dd>
+
+                            <dt class="col-sm-3">Tables Configuration</dt>
+                            <dd class="col-sm-9">
+                                <div v-if="job.tables && job.tables.length > 0">
+                                    <div class="table-responsive">
+                                        <table class="table table-sm table-bordered">
+                                            <thead class="table-light">
+                                                <tr>
+                                                    <th>Table Name</th>
+                                                    <th>Columns</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr v-for="table in job.tables" :key="table.tableName">
+                                                    <td><code>{{ table.tableName }}</code></td>
+                                                    <td>
+                                                        <span v-if="table.columns && table.columns.length > 0">
+                                                            <code v-for="(col, idx) in table.columns" :key="col">
+                                                                {{ col }}<span v-if="idx < table.columns.length - 1">, </span>
+                                                            </code>
+                                                        </span>
+                                                        <span v-else class="text-muted">All columns (*)</span>
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                <span v-else class="text-muted">All tables with all columns</span>
+                            </dd>
+
+                            <dt class="col-sm-3">Created At</dt>
+                            <dd class="col-sm-9">{{ formatDateTime(job.createdAt) }}</dd>
+
+                            <dt class="col-sm-3">Updated At</dt>
+                            <dd class="col-sm-9">{{ formatDateTime(job.updatedAt) }}</dd>
+                        </dl>
+                    </div>
+                </div>
+
+                <!-- Error State -->
+                <div v-else class="alert alert-danger">
+                    Job not found.
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue@3.4.15/dist/vue.global.js"></script>
+    <script>
+        const { createApp } = Vue;
+
+        createApp({
+            data() {
+                return {
+                    jobId: null,
+                    job: null,
+                    connection: null,
+                    storage: null,
+                    loading: true,
+                    running: false,
+                    alert: { show: false, type: 'success', message: '' }
+                };
+            },
+            async mounted() {
+                const params = new URLSearchParams(window.location.search);
+                this.jobId = params.get('id');
+
+                if (!this.jobId) {
+                    window.location.href = '/jobs';
+                    return;
+                }
+
+                await this.loadJob();
+            },
+            methods: {
+                async loadJob() {
+                    try {
+                        const response = await fetch(`/api/jobs/${this.jobId}`);
+                        if (response.ok) {
+                            this.job = await response.json();
+                            // Load related connection and storage
+                            await this.loadConnection(this.job.connectionId);
+                            await this.loadStorage(this.job.storageId);
+                        }
+                    } catch (error) {
+                        console.error('Failed to load job:', error);
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+                async loadConnection(connectionId) {
+                    try {
+                        const response = await fetch(`/api/connections/${connectionId}`);
+                        if (response.ok) {
+                            this.connection = await response.json();
+                        }
+                    } catch (error) {
+                        console.error('Failed to load connection:', error);
+                    }
+                },
+                async loadStorage(storageId) {
+                    try {
+                        const response = await fetch(`/api/storages/${storageId}`);
+                        if (response.ok) {
+                            this.storage = await response.json();
+                        }
+                    } catch (error) {
+                        console.error('Failed to load storage:', error);
+                    }
+                },
+                formatDateTime(dateTimeStr) {
+                    if (!dateTimeStr) return '';
+                    const date = new Date(dateTimeStr);
+                    return date.toLocaleString();
+                },
+                async runJob() {
+                    this.running = true;
+
+                    try {
+                        const response = await fetch(`/api/jobs/${this.jobId}/run`, {
+                            method: 'POST'
+                        });
+
+                        if (!response.ok) {
+                            const error = await response.json();
+                            throw new Error(error.message || 'Failed to run job');
+                        }
+
+                        const result = await response.json();
+                        this.showAlert('success', result.message || 'Job started successfully');
+                    } catch (error) {
+                        this.showAlert('danger', error.message);
+                    } finally {
+                        this.running = false;
+                    }
+                },
+                showAlert(type, message) {
+                    this.alert = { show: true, type, message };
+                    setTimeout(() => this.alert.show = false, 5000);
+                }
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
