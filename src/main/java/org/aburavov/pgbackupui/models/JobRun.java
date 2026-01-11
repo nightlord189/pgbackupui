@@ -24,37 +24,37 @@ public class JobRun {
 
     private LocalDateTime finishedAt;
 
-    @NotBlank(message = "Status is required")
-    private String status; // RUNNING, SUCCESS, FAILED
+    @NotNull(message = "Status is required")
+    private JobRunStatus status;
 
     private String errorMessage;
 
-    private String triggeredBy; // MANUAL, SCHEDULED
+    private JobRunTriggerType triggeredBy;
 
-    private String folderName; // Name of the backup folder
+    private String folderName;
 
-    private Long filesSize; // Total size of backup files in bytes
+    private Long filesSize;
 
     public JobRun() {
         this.startedAt = LocalDateTime.now();
-        this.status = "RUNNING";
+        this.status = JobRunStatus.RUNNING;
     }
 
-    public JobRun(String jobId, String triggeredBy) {
+    public JobRun(String jobId, JobRunTriggerType triggeredBy) {
         this();
         this.jobId = jobId;
         this.triggeredBy = triggeredBy;
     }
 
     public void markSuccess(String folderName, Long filesSize) {
-        this.status = "SUCCESS";
+        this.status = JobRunStatus.SUCCESS;
         this.finishedAt = LocalDateTime.now();
         this.folderName = folderName;
         this.filesSize = filesSize;
     }
 
     public void markFailed(String errorMessage) {
-        this.status = "FAILED";
+        this.status = JobRunStatus.FAILED;
         this.finishedAt = LocalDateTime.now();
         this.errorMessage = errorMessage;
     }
@@ -91,11 +91,11 @@ public class JobRun {
         this.finishedAt = finishedAt;
     }
 
-    public String getStatus() {
+    public JobRunStatus getStatus() {
         return status;
     }
 
-    public void setStatus(String status) {
+    public void setStatus(JobRunStatus status) {
         this.status = status;
     }
 
@@ -107,11 +107,11 @@ public class JobRun {
         this.errorMessage = errorMessage;
     }
 
-    public String getTriggeredBy() {
+    public JobRunTriggerType getTriggeredBy() {
         return triggeredBy;
     }
 
-    public void setTriggeredBy(String triggeredBy) {
+    public void setTriggeredBy(JobRunTriggerType triggeredBy) {
         this.triggeredBy = triggeredBy;
     }
 

@@ -12,9 +12,6 @@ import java.nio.file.Paths;
 import java.util.List;
 import java.util.stream.Stream;
 
-/**
- * Implementation of IStorageService for local filesystem storage
- */
 @Service
 public class FileStorageService implements IStorageService {
 
@@ -50,7 +47,6 @@ public class FileStorageService implements IStorageService {
                     .filter(Files::isDirectory)
                     .filter(p -> p.getFileName().toString().startsWith("backup_"))
                     .sorted((p1, p2) -> {
-                        // Sort by last modified time (newest first)
                         try {
                             return Files.getLastModifiedTime(p2).compareTo(Files.getLastModifiedTime(p1));
                         } catch (IOException e) {
@@ -72,7 +68,6 @@ public class FileStorageService implements IStorageService {
                             try {
                                 Files.delete(path);
                             } catch (IOException e) {
-                                // Log error but continue
                                 System.err.println("Failed to delete: " + path + " - " + e.getMessage());
                             }
                         });

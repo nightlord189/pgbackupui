@@ -14,12 +14,8 @@ import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
 
-/**
- * Implementation of IStorageService for AWS S3 storage
- */
 @Service
 public class S3StorageService implements IStorageService {
-
     /**
      * Creates an S3 client with credentials from Storage configuration
      */
@@ -50,10 +46,14 @@ public class S3StorageService implements IStorageService {
         return String.join("/", parts).replaceAll("/+", "/");
     }
 
+    /**
+     * For S3, directories are just prefixes; no actual creation needed
+     * @param storage Storage configuration
+     * @param directoryName name of the directory to create
+     * @return directory name that will be used as prefix for objects
+     */
     @Override
-    public String createDirectory(Storage storage, String directoryName) throws IOException {
-        // For S3, directories are just prefixes, no actual creation needed
-        // Return the directory name that will be used as prefix for objects
+    public String createDirectory(Storage storage, String directoryName) {
         String prefix = storage.getPrefix() != null && !storage.getPrefix().isBlank()
                 ? storage.getPrefix() + "/" + directoryName
                 : directoryName;
@@ -64,10 +64,10 @@ public class S3StorageService implements IStorageService {
     public void writeFile(Storage storage, String backupPath, TableBackupData tableData) throws IOException {
         String tableName = tableData.getTableName();
         String fileName = tableName + ".sql";
-        // backupPath already contains the full prefix from createDirectory()
+
         String s3Key = backupPath + "/" + fileName;
 
-        // Combine SQL statements into a single string
+
         StringBuilder content = new StringBuilder();
         for (String sqlStatement : tableData.getSqlStatements()) {
             content.append(sqlStatement).append("\n");
@@ -100,14 +100,13 @@ public class S3StorageService implements IStorageService {
 
             ListObjectsV2Response listResponse = s3Client.listObjectsV2(listRequest);
 
-            // Get common prefixes (directories)
+
             return listResponse.commonPrefixes().stream()
                     .map(CommonPrefix::prefix)
                     .map(p -> p.substring(prefix.length())) // Remove base prefix
                     .map(p -> p.endsWith("/") ? p.substring(0, p.length() - 1) : p) // Remove trailing slash
                     .filter(p -> p.startsWith("backup_"))
                     .sorted((p1, p2) -> {
-                        // Sort by name (which includes timestamp) in reverse order
                         return p2.compareTo(p1);
                     })
                     .collect(Collectors.toList());
@@ -118,12 +117,9 @@ public class S3StorageService implements IStorageService {
 
     @Override
     public void deleteDirectory(Storage storage, String directoryName) throws IOException {
-        // For deleteDirectory, directoryName is just the backup folder name (e.g., "backup_2026...")
-        // We need to build the full prefix
         String prefix = buildS3Key(storage, directoryName) + "/";
 
         try (S3Client s3Client = createS3Client(storage)) {
-            // List all objects with this prefix
             ListObjectsV2Request listRequest = ListObjectsV2Request.builder()
                     .bucket(storage.getBucket())
                     .prefix(prefix)
@@ -132,10 +128,9 @@ public class S3StorageService implements IStorageService {
             ListObjectsV2Response listResponse = s3Client.listObjectsV2(listRequest);
 
             if (listResponse.contents().isEmpty()) {
-                return; // No objects to delete
+                return;
             }
 
-            // Delete all objects
             List<ObjectIdentifier> objectsToDelete = listResponse.contents().stream()
                     .map(s3Object -> ObjectIdentifier.builder().key(s3Object.key()).build())
                     .collect(Collectors.toList());
@@ -157,7 +152,6 @@ public class S3StorageService implements IStorageService {
 
     @Override
     public long calculateDirectorySize(Storage storage, String directoryPath) throws IOException {
-        // directoryPath already contains the full prefix from createDirectory()
         String prefix = directoryPath + "/";
 
         try (S3Client s3Client = createS3Client(storage)) {

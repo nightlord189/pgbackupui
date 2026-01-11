@@ -5,6 +5,8 @@ import org.aburavov.pgbackupui.dto.TableBackupData;
 import org.aburavov.pgbackupui.dto.TableSchema;
 import org.aburavov.pgbackupui.models.Connection;
 import org.aburavov.pgbackupui.models.Job;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.sql.*;
@@ -17,7 +19,10 @@ import java.util.stream.Collectors;
 @Service
 public class DbService {
 
+    private static final Logger logger = LoggerFactory.getLogger(DbService.class);
+
     public List<TableSchema> getDatabaseSchema(Connection connection) throws SQLException {
+        logger.debug("Fetching database schema for connection: {}", connection.getName());
         String url = String.format("jdbc:postgresql://%s:%d/%s",
                 connection.getHost(),
                 connection.getPort(),
@@ -46,6 +51,7 @@ public class DbService {
             }
         }
 
+        logger.debug("Database schema retrieved: {} tables for connection {}", tables.size(), connection.getName());
         return tables;
     }
 

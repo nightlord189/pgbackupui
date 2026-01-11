@@ -132,12 +132,7 @@ public class Storage {
         this.updatedAt = LocalDateTime.now();
     }
 
-    /**
-     * Validates storage-specific fields based on storage type
-     * @param isUpdate true if this is an update operation (secretKey is optional), false for create
-     * @throws IllegalArgumentException if validation fails
-     */
-    public void validateTypeSpecificFields(boolean isUpdate) {
+    public void validate(boolean isUpdate) {
         if (this.type == StorageType.LOCAL) {
             if (this.path == null || this.path.isBlank()) {
                 throw new IllegalArgumentException("Path is required for LOCAL storage type");

@@ -6,9 +6,6 @@ import org.aburavov.pgbackupui.models.Storage;
 import java.io.IOException;
 import java.util.List;
 
-/**
- * Interface for different storage implementations (Local filesystem, S3, etc.)
- */
 public interface IStorageService {
 
     /**
